@@ -1,5 +1,12 @@
 ﻿/*=====================================================================
-  parking_lot.c
+  <parking_lot.c>
+  : 주차 공간 초기화 / 추천 / 빈자리 조회
+
+  - init_parking_spots() : 전체 주차 공간(구조체 배열) 초기화
+  - recommend_parking_spot() : 차종에 따른 "스마트 주차공간 추천 알고리즘" 구현
+  - view_empty_spots() : 구역별 빈 주차공간 현황 출력
+
+
   ---------------------------------------------------------------------
   [기능 설명]
   - 전체 주차 공간(구조체 배열) 초기화
@@ -15,6 +22,7 @@
 #define WEIGHT_DISTANCE     1.0   /* 거리 1당 가중치 */
 #define WEIGHT_CONGESTION   50.0  /* 혼잡도(0~1) 가중치 */
 #define PENALTY_FALLBACK    50.0  /* 전용구역이 아닌 일반구역 사용 시 적합도 페널티 */
+
 
 /*---------------------------------------------------------------------
   구역/차종 이름 문자열 반환 (출력용)
@@ -43,6 +51,7 @@ const char *car_type_name(CarType type)
     }
 }
 
+
 /* 차종에 따른 우선 배정 구역 */
 ZoneType preferred_zone_for_car(CarType type)
 {
@@ -57,11 +66,7 @@ ZoneType preferred_zone_for_car(CarType type)
 }
 
 /*---------------------------------------------------------------------
-  구역별 배치 설정(공간 개수, 가로 길이, 입구 좌표)을 한 번에 가져오는 헬퍼
-  parking.h 에 정의된 매크로 상수를 구역(ZoneType)에 따라 반환한다.
-  이 함수 하나만 보면 각 구역의 배치 설정을 한눈에 알 수 있다.
-  (file_io.c 에서도 이 설정 값을 parking.txt 에 저장/비교하기 위해
-   외부에서 호출할 수 있도록 공개 함수로 둔다)
+  구역별 배치 설정(공간 개수, 가로 길이, 입구 좌표) 가져옴
 ---------------------------------------------------------------------*/
 void get_zone_layout(ZoneType zone, int *count, int *width, int *entrance_row, int *entrance_col)
 {
@@ -105,27 +110,27 @@ void get_zone_layout(ZoneType zone, int *count, int *width, int *entrance_row, i
 static void create_zone_spots(ParkingSystem *sys, int *idx, ZoneType zone, char prefix,
                                int count, int width, int entrance_row, int entrance_col)
 {
-    int assigned = 0;
-    int spot_number = 1;
+    int assigned = 0; // 지금까지 몇 개의 "실제 주차 공간"을 배치했는지
+    int spot_number = 1; // "A1", "A2"... 뒤에 붙는 번호
     int total_cells = count + 1; /* 실제 주차 공간 + 입구 칸 1개 */
     int rows = (total_cells + width - 1) / width; /* 올림 나눗셈으로 필요한 줄 수 계산 */
 
     for (int cell = 0; cell < rows * width && assigned < count; cell++) {
-        int row = cell / width;
-        int col = cell % width;
+        int row = cell / width; // 0번째 칸부터 순서대로 세면서 몇 번째 줄인지
+        int col = cell % width; // 그 줄에서 몇 번째 칸인지
 
         if (row == entrance_row && col == entrance_col) continue; /* 입구 칸은 제외 */
 
-        sprintf(sys->spots[*idx].location, "%c%d", prefix, spot_number++);
+        sprintf(sys->spots[*idx].location, "%c%d", prefix, spot_number++); // "A1","A2".. 문자열 생성(prefix='A', 번호는 매번 1씩 증가)
         sys->spots[*idx].row = row;
         sys->spots[*idx].col = col;
         sys->spots[*idx].distance = abs(row - entrance_row) + abs(col - entrance_col); /* 맨해튼 거리 */
-        sys->spots[*idx].zone = zone;
-        sys->spots[*idx].occupied = 0;
+        sys->spots[*idx].zone = zone; 
+        sys->spots[*idx].occupied = 0; // 처음엔 무조건 빈 자리로 시작
         sys->spots[*idx].vehicle_plate[0] = '\0';
 
-        (*idx)++;
-        assigned++;
+        (*idx)++; // sys->spots 배열 전체에서 "다음에 채울 위치"를 가리키는 전역 인덱스 1 증가
+        assigned++; // 이 구역에서 배치한 개수 1 증가
     }
 }
 
@@ -155,7 +160,7 @@ int find_spot_index_by_location(const ParkingSystem *sys, const char *location)
     return -1;
 }
 
-/* 특정 구역의 혼잡도(0.0~1.0) 계산: 사용중인 공간 수 / 전체 공간 수 */
+/* 특정 구역의 혼잡도(0.0~1.0) 계산: ( 사용중인 공간 수 / 전체 공간 수 ) */
 static double zone_congestion(const ParkingSystem *sys, ZoneType zone)
 {
     int total = 0, occ = 0;
@@ -170,28 +175,30 @@ static double zone_congestion(const ParkingSystem *sys, ZoneType zone)
 }
 
 /*---------------------------------------------------------------------
-  스마트 주차공간 추천 알고리즘
+  **** 스마트 주차공간 추천 알고리즘 ****
+ 
   - 우선 차종에 맞는 전용구역에서 빈 자리를 탐색
   - 전용구역이 모두 찼다면 일반구역에서 탐색(단, 적합도 페널티 부여)
-  - 각 후보 공간에 대해 추천점수 = 거리점수 + 혼잡도점수 + 적합도점수
-    를 계산하여 점수가 가장 낮은 공간을 선택
+  - 각 후보 공간에 대해 
+        [   추천점수 = 거리점수 + 혼잡도점수 + 적합도점수     ]       를 계산하여 점수가 가장 "낮은" 공간을 선택
   - 반환값 : 선택된 spot의 배열 인덱스(없으면 -1)
   - out_score : 최종 선택된 공간의 추천 점수(정수로 반올림)
   - reason_buf : 추천 이유를 사람이 읽을 수 있는 문자열로 채움
 ---------------------------------------------------------------------*/
 int recommend_spot(ParkingSystem *sys, CarType type, int *out_score, char *reason_buf, size_t reason_buf_size)
 {
-    ZoneType preferred = preferred_zone_for_car(type);
-    int best_idx = -1;
-    double best_score = 1e18;
-    int used_fallback = 0;
+    ZoneType preferred = preferred_zone_for_car(type); // 이 차종의 "원래 우선구역"이 뭔지 먼저 확인(②)
+    int best_idx = -1; // 지금까지 찾은 최적 후보의 배열 인덱스
+    double best_score = 1e18; // 아주 큰 값으로 초기화(뭐가 오든 처음엔 무조건 이 값보다 작을 수밖에 없게)
+    int used_fallback = 0; // 전용구역이 다 차서 일반구역으로 대체했는지 여부
+
 
     /* 1차 시도 : 전용구역에서 탐색 */
     for (int i = 0; i < TOTAL_SPOTS; i++) {
-        if (sys->spots[i].zone == preferred && !sys->spots[i].occupied) {
-            double congestion = zone_congestion(sys, preferred);
-            double score = sys->spots[i].distance * WEIGHT_DISTANCE
-                          + congestion * WEIGHT_CONGESTION
+        if (sys->spots[i].zone == preferred && !sys->spots[i].occupied) { // 원하는 구역이면서 비어있는 자리만
+            double congestion = zone_congestion(sys, preferred); // 이 구역의 혼잡도(구역 전체가 같은 값을 공유)
+            double score = sys->spots[i].distance * WEIGHT_DISTANCE // 거리점수 = 거리 × 1.0
+                          + congestion * WEIGHT_CONGESTION          // 혼잡도점수 = 혼잡도(0~1) × 50.0
                           + 0.0; /* 전용구역이므로 적합도 페널티 없음 */
             if (score < best_score) {
                 best_score = score;
@@ -208,7 +215,7 @@ int recommend_spot(ParkingSystem *sys, CarType type, int *out_score, char *reaso
                 double congestion = zone_congestion(sys, ZONE_NORMAL);
                 double score = sys->spots[i].distance * WEIGHT_DISTANCE
                               + congestion * WEIGHT_CONGESTION
-                              + PENALTY_FALLBACK;
+                              + PENALTY_FALLBACK; // 여기서만 50점 페널티 추가! (전용구역이 아니라서)
                 if (score < best_score) {
                     best_score = score;
                     best_idx = i;
@@ -217,13 +224,13 @@ int recommend_spot(ParkingSystem *sys, CarType type, int *out_score, char *reaso
             }
         }
     }
-
-    if (best_idx == -1) {
+     
+    if (best_idx == -1) { // 1차, 2차 다 실패 = 주차장에 빈자리가 아예 없음
         if (reason_buf && reason_buf_size > 0) reason_buf[0] = '\0';
         return -1;
     }
 
-    if (out_score) *out_score = (int)(best_score + 0.5);
+    if (out_score) *out_score = (int)(best_score + 0.5); // 최종 점수를 정수로 반올림해서 out-parameter로 돌려줌
 
     /* 추천 이유 문자열 구성 */
     if (reason_buf && reason_buf_size > 0) {
