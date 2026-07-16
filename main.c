@@ -10,9 +10,10 @@
   - print_admin_menu() : 관리자모드 메뉴 출력
   - check_admin_password() : 관리자 비밀번호 확인
   - run_user_mode() : 사용자모드
-  - run_admin_mode() : 관리자모드
-  - ParkingSystem : 전체 시스템 상태
-=====================================================================*/
+
+
+
+
 #include "parking.h"
 
 /* 현재 시스템이 어떤 모드로 동작 중인지 나타내는 열거형 */
