@@ -1,6 +1,15 @@
 ﻿/*=====================================================================
-  file_io.c
+  <file_io.c>
+  : 파일 저장/불러오기
+
+  - encode_plate() : 차량번호 문자열의 공백(' ')을 밑줄('_')로 치환하여 저장
+  - decode_plate() : 밑줄('_')로 치환되어 저장되어 있던 문자를 다시 공백(' ')으로 되돌림
+
+  - save_to_file() : parking.txt 파일에 현재 시스템 상태 저장
+  - load_from_file() : parking.txt 파일로부터 시스템 상태 불러오기
+
   ---------------------------------------------------------------------
+
   [기능 설명]
   - 현재 주차 중인 차량 목록 + 통계용 입/출차 기록(전체 이력) +
     구역별 배치 설정(공간 개수/가로 길이/입구 좌표)을 parking.txt
@@ -37,6 +46,7 @@ static const ZoneType ALL_ZONES[ZONE_COUNT] = {
 };
 
 /*---------------------------------------------------------------------
+  1. 파일 저장&불러오기 시, 
   차량번호 문자열의 공백(' ')을 밑줄('_')로 치환하여 dst에 저장
   (파일에 공백으로 값을 구분해 저장하므로, 차량번호 안의 공백이
    구분자로 오인되지 않도록 저장 직전에만 임시로 바꿔준다)
@@ -45,73 +55,75 @@ static void encode_plate(const char *src, char *dst, size_t dst_size)
 {
     size_t i = 0;
     for (; i < dst_size - 1 && src[i] != '\0'; i++) {
-        dst[i] = (src[i] == ' ') ? '_' : src[i];
+        dst[i] = (src[i] == ' ') ? '_' : src[i]; // 공백이면 '_'로 바꾸고, 아니면 그대로 복사
     }
-    dst[i] = '\0';
+    dst[i] = '\0'; // 문자열 끝에 널 종료문자 추가 (안 붙이면 이후 쓰레기값까지 문자열로 취급됨)
 }
 
 /* 밑줄('_')로 치환되어 저장되어 있던 문자를 다시 공백(' ')으로 되돌림(제자리 변환) */
 static void decode_plate(char *plate)
 {
     for (int i = 0; plate[i] != '\0'; i++) {
-        if (plate[i] == '_') plate[i] = ' ';
+        if (plate[i] == '_') plate[i] = ' '; // '_'를 다시 공백으로 되돌림(제자리에서 직접 수정, 별도 버퍼 필요 없음)
     }
 }
 
 /*---------------------------------------------------------------------
-  파일 저장 (관리자모드 "파일 저장" 메뉴 / 프로그램 종료 시 자동 호출)
+  2. 파일 저장 (관리자모드 "파일 저장" 메뉴 / 프로그램 종료 시 자동 호출)
 ---------------------------------------------------------------------*/
 void save_to_file(const ParkingSystem *sys)
 {
-    FILE *fp = fopen(FILE_NAME, "w");
+    FILE *fp = fopen(FILE_NAME, "w"); //쓰기모드로 열기
     if (!fp) {
         printf("[오류] 파일을 저장할 수 없습니다: %s\n", FILE_NAME);
         return;
     }
 
-    /* 구역별 배치 설정 저장 (공간개수/가로길이/입구좌표) - 동기화 확인용 */
+    /* 1. 구역별 배치 설정 저장 (공간개수/가로길이/입구좌표) - 동기화 확인용 */
     fprintf(fp, "%d\n", ZONE_COUNT);
     for (int z = 0; z < ZONE_COUNT; z++) {
         int count, width, entrance_row, entrance_col;
         get_zone_layout(ALL_ZONES[z], &count, &width, &entrance_row, &entrance_col);
         fprintf(fp, "%d %d %d %d %d\n", (int)ALL_ZONES[z], count, width, entrance_row, entrance_col);
+        // 구역번호 공간개수 가로길이 입구행 입구열 순서로 한 줄에 기록
     }
 
-    /* 입차 기록 저장 (통계용) */
-    fprintf(fp, "%d\n", sys->entry_record_count);
+    /* 2. 입차 기록 저장 (통계용) */
+    fprintf(fp, "%d\n", sys->entry_record_count); //// 입차 기록이 몇 개 있는지 개수부터 기록
     for (int i = 0; i < sys->entry_record_count; i++) {
         fprintf(fp, "%lld\n", (long long)sys->entry_records[i].entry_time);
     }
 
-    /* 출차(정산) 기록 저장 (통계용) */
-    fprintf(fp, "%d\n", sys->exit_record_count);
+    /* 3. 출차(정산) 기록 저장 (통계용) */
+    fprintf(fp, "%d\n", sys->exit_record_count); // 출차 기록 개수
     for (int i = 0; i < sys->exit_record_count; i++) {
-        const ExitRecord *r = &sys->exit_records[i];
+        const ExitRecord *r = &sys->exit_records[i]; // 매번 배열 인덱싱하지 않고 포인터 하나로 가리켜서 코드 간결하게
         fprintf(fp, "%lld %lld %.2f %.2f\n",
                 (long long)r->entry_time, (long long)r->exit_time, r->fee, r->parked_minutes);
+        // 입차시각 출차시각 요금 주차분(모두 한 줄) - 요금/분은 소수점 2자리까지
     }
 
-    /* 현재 주차 중인 차량 목록 저장 */
-    fprintf(fp, "%d\n", sys->count);
+    /* 4. 현재 주차 중인 차량 목록 저장 */
+    fprintf(fp, "%d\n", sys->count); // 지금 주차장에 몇 대가 있는지
     for (int i = 0; i < sys->count; i++) {
         Vehicle *v = sys->vehicles[i];
         char plate_enc[PLATE_LEN];
         encode_plate(v->plate, plate_enc, sizeof(plate_enc)); /* 공백 -> '_' */
         fprintf(fp, "%s %d %d %lld %s %d\n",
-                plate_enc,
-                (int)v->car_type,
+                plate_enc,              // 변환된 차량번호
+                (int)v->car_type,       // enum -> int로 캐스팅해서 숫자로 저장
                 (int)v->discount,
                 (long long)v->entry_time,
                 v->location,
                 v->recommend_score);
     }
 
-    fclose(fp);
+    fclose(fp); // 파일 닫기 중요!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
     printf("\n[완료] 데이터가 %s 파일에 저장되었습니다.\n", FILE_NAME);
 }
 
 /*---------------------------------------------------------------------
-  파일 불러오기 (프로그램 시작 시 자동 호출)
+  3. 파일 불러오기 (프로그램 시작 시 자동 호출)
 ---------------------------------------------------------------------*/
 void load_from_file(ParkingSystem *sys)
 {

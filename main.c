@@ -214,15 +214,16 @@ int main(void)
     ParkingSystem sys; // 전체 프로그램에서 사용할 시스템 상태 
     memset(&sys, 0, sizeof(ParkingSystem)); //구조체 메모리 전체를 0을 초기화
 
-    init_parking_spots(&sys);
+    init_parking_spots(&sys); //sys.spots[] 배열(전체 주차 공간, 크기는 TOTAL_SPOTS) 채움
+                              //A1, A2...(일반), B1, B2...(전기차) 같은 위치 문자열, 입구와의 거리, 구역 종류
     load_from_file(&sys);   /* 프로그램 실행 시 자동으로 기존 데이터 불러오기 */
 
-    SystemMode mode;
+    SystemMode mode; //사용자모드인지 관리자모드인지
     int program_running = 1;
 
     /* 최초 진입 시 최상위 메뉴에서 사용자모드/관리자모드 중 하나를 선택 */
     while (program_running) {
-        print_top_menu();
+		print_top_menu(); // 최상위 메뉴 출력
         int top_choice = read_int("메뉴를 선택하세요: ", 1, 2);
 
         if (top_choice == 1) {
