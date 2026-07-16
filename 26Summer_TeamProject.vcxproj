@@ -19,16 +19,16 @@
     </ProjectConfiguration>
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="..\..\Users\yejii\Downloads\ParkingSystem (6)\ParkingSystem\fee.c" />
-    <ClCompile Include="..\..\Users\yejii\Downloads\ParkingSystem (6)\ParkingSystem\file_io.c" />
-    <ClCompile Include="..\..\Users\yejii\Downloads\ParkingSystem (6)\ParkingSystem\main.c" />
-    <ClCompile Include="..\..\Users\yejii\Downloads\ParkingSystem (6)\ParkingSystem\parking_lot.c" />
-    <ClCompile Include="..\..\Users\yejii\Downloads\ParkingSystem (6)\ParkingSystem\sort.c" />
-    <ClCompile Include="..\..\Users\yejii\Downloads\ParkingSystem (6)\ParkingSystem\stats.c" />
-    <ClCompile Include="..\..\Users\yejii\Downloads\ParkingSystem (6)\ParkingSystem\vehicle_manager.c" />
+    <ClCompile Include="fee.c" />
+    <ClCompile Include="file_io.c" />
+    <ClCompile Include="main.c" />
+    <ClCompile Include="parking_lot.c" />
+    <ClCompile Include="sort.c" />
+    <ClCompile Include="stats.c" />
+    <ClCompile Include="vehicle_manager.c" />
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="..\..\Users\yejii\Downloads\ParkingSystem (6)\ParkingSystem\parking.h" />
+    <ClInclude Include="parking.h" />
   </ItemGroup>
   <PropertyGroup Label="Globals">
     <VCProjectVersion>18.0</VCProjectVersion>

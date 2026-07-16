@@ -15,30 +15,30 @@
     </Filter>
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="..\..\Users\yejii\Downloads\ParkingSystem (6)\ParkingSystem\fee.c">
+    <ClCompile Include="fee.c">
       <Filter>소스 파일</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\Users\yejii\Downloads\ParkingSystem (6)\ParkingSystem\file_io.c">
+    <ClCompile Include="file_io.c">
       <Filter>소스 파일</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\Users\yejii\Downloads\ParkingSystem (6)\ParkingSystem\main.c">
+    <ClCompile Include="main.c">
       <Filter>소스 파일</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\Users\yejii\Downloads\ParkingSystem (6)\ParkingSystem\parking_lot.c">
+    <ClCompile Include="parking_lot.c">
       <Filter>소스 파일</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\Users\yejii\Downloads\ParkingSystem (6)\ParkingSystem\sort.c">
+    <ClCompile Include="sort.c">
       <Filter>소스 파일</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\Users\yejii\Downloads\ParkingSystem (6)\ParkingSystem\stats.c">
+    <ClCompile Include="stats.c">
       <Filter>소스 파일</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\Users\yejii\Downloads\ParkingSystem (6)\ParkingSystem\vehicle_manager.c">
+    <ClCompile Include="vehicle_manager.c">
       <Filter>소스 파일</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="..\..\Users\yejii\Downloads\ParkingSystem (6)\ParkingSystem\parking.h">
+    <ClInclude Include="parking.h">
       <Filter>헤더 파일</Filter>
     </ClInclude>
   </ItemGroup>
